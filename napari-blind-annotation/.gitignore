@@ -1,0 +1,4 @@
+.idea/*
+.DS_Store
+napari_blind_annotation.egg-info/*
+*.pyc
