@@ -44,6 +44,7 @@ while found_analysis_file == False:
     # check if an analysed file already exists at this location
     if target_save_path.exists():
         visited_files.append(file)
+        print('already analysed!')
     else:
         found_analysis_file = True
 

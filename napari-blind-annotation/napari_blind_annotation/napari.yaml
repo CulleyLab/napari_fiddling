@@ -1,0 +1,10 @@
+name: napari-blind-annotation
+contributions:
+  commands:
+    - id: napari-blind-annotation.say_hi
+      title: Say hello, world!
+      python_name: napari_blind_annotation:show_hello_message
+  widgets:
+    - command: napari-blind-annotation.say_hi
+      display_name: Hello World
+      autogenerate: true
