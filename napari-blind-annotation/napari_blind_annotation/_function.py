@@ -1,16 +1,16 @@
 import pathlib
 
 import numpy as np
-from magicgui import magicgui, magic_factory
+from magicgui import magicgui
 from random import choice
 from glob import glob
 from tifffile import imread
 import os
 import napari
-from skimage.transform import rotate
-from numpy import flipud, fliplr
+from numpy import flipud, fliplr, rot90
 
 global visited_files
+
 def my_widget():
     @magicgui(
         auto_call=False,
@@ -19,8 +19,30 @@ def my_widget():
         annotated_dir={"widget_type": 'FileEdit', 'mode': 'd'},
         do_rotation={"widget_type": 'PushButton', 'text': 'Load and transform random image'}
     )
-    def widget(raw_dir, annotated_dir, do_rotation, save_labels):
+    def widget(raw_dir, annotated_dir, do_rotation):
         # TODO: DON'T FORGET YOU NEED TO REVERSE THE ROTATION AND FLIPPING!!!!!!!!!
+        # get label image data, fucking stupid there must be a better way
+
+        label_layer = viewer.layers['labels']
+        layer_data = label_layer.data
+
+        # undo horizontal flip
+        if horizontal_flip == 1:
+            un_h_flipped = fliplr(layer_data)
+        else:
+            un_h_flipped = layer_data
+
+        # undo vertical flip
+        if vertical_flip == 1:
+            un_v_flipped = flipud(un_h_flipped)
+        else:
+            un_v_flipped = un_h_flipped
+
+        # undo rotation
+        un_rotated = rot90(un_v_flipped, int(-angle/90))
+
+        # add as a layer
+        viewer.add_labels(data=un_rotated.astype('uint16'), name='untransformed labels', opacity=0.4)
 
         print("we ran")
         return
@@ -69,12 +91,14 @@ def my_widget():
         raw = imread(file)
 
         # apply random rotation
+        global angle # I hate this.
         angle = choice([0, 90, 180, 270])
         print(angle)
-        rotated = rotate(raw, angle)
+        rotated = rot90(raw, int(angle/90))
 
         # apply random vertical flip
-        vertical_flip = choice([0, 1])
+        global vertical_flip
+        vertical_flip = choice([0, 1]) # I also hate this.
         if vertical_flip == 1:
             print('v flipped!')
             v_flipped = flipud(rotated)
@@ -82,7 +106,8 @@ def my_widget():
             v_flipped = rotated
 
         # apply random horizontal flip
-        horizontal_flip = choice([0, 1])
+        global horizontal_flip
+        horizontal_flip = choice([0, 1]) # Newsflash: I also hate this.
         if horizontal_flip == 1:
             print('h flipped!')
             h_flipped = fliplr(v_flipped)
@@ -92,10 +117,13 @@ def my_widget():
         # now want to add h_flipped as an image layer
         viewer.add_image(data=h_flipped, name='data')
 
+        viewer.add_image(data=raw, name='before transform', visible=False)
+
         # add labels layer
         viewer.add_labels(data=np.zeros(h_flipped.shape, dtype='uint16'), name='labels', opacity=0.4)
 
     return widget
+
 
 viewer = napari.Viewer()
 viewer.window.add_dock_widget(my_widget())
