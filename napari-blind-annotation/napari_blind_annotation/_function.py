@@ -53,6 +53,10 @@ def blind_annotation_widget():
             print('created directory!')
         imwrite(target_save_path, un_rotated)
 
+        # TODO: close layers
+        viewer.layers.clear()
+
+
         print("it actually ran?!")
         return
 
