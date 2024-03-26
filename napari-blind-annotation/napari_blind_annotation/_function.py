@@ -9,6 +9,7 @@ import os
 import napari
 from numpy import flipud, fliplr, rot90
 
+global all_image_files
 global visited_files
 
 def blind_annotation_widget():
@@ -19,7 +20,7 @@ def blind_annotation_widget():
         annotated_dir={"widget_type": 'FileEdit', 'mode': 'd'},
         do_rotation={"widget_type": 'PushButton', 'text': 'Load and transform random image'}
     )
-    def widget(raw_dir, annotated_dir, do_rotation):
+    def widget(raw_dir, annotated_dir, do_rotation, param_options):
         image_metadata = viewer.layers['data'].metadata
         horizontal_flip = image_metadata['horizontal_flip']
         vertical_flip = image_metadata['vertical_flip']
@@ -61,45 +62,75 @@ def blind_annotation_widget():
 
         return
 
+    @widget.raw_dir.changed.connect
+    def update_all_files_list():
+        self = widget
+        if not hasattr(self, 'all_image_files'):
+            self.all_image_files = []
+
+        # wipe previous list of files
+        self.all_image_files = []
+
+        # walk through directory
+        for root, dirs, files in os.walk(widget.raw_dir.value):
+            for file in files:
+                if file.endswith(".tif"):
+                    widget.all_image_files.append(os.path.join(root, file))
+
+        print(f'there are {len(self.all_image_files)} tif images in this directory')
+        return widget
+
+    @widget.annotated_dir.changed.connect
+    def update_unanalysed_files_list():
+        self = widget
+        if not hasattr(self, 'unanalysed_files'):
+            self.unanalysed_files = []
+
+        # walk through annotated directory
+        analysed_files_list = []
+        save_path = widget.annotated_dir.value
+
+        for root, dirs, files in os.walk(widget.annotated_dir.value):
+            for file in files:
+                if file.endswith(".tif"):
+                   analysed_files_list.append(os.path.join(root, file))
+
+        # now, want to map analysed files to corresponding raw data path
+        unanalysed_image_list = widget.all_image_files.copy()
+
+        # get path depth of raw dir
+        depth_images_path = len(str(widget.raw_dir.value).split(os.sep))
+
+        for image_file in widget.all_image_files:
+            # get path depth of this image
+            file_as_list = image_file.split(os.sep)
+
+            # create equivalent analysed file path
+            # TODO: make into function, need it in button callback
+            target_annotated_path = pathlib.Path(widget.annotated_dir.value)
+            for intermediate_dir in file_as_list[depth_images_path:len(file_as_list) + 1]: # why the +1
+                target_annotated_path = target_annotated_path.joinpath(pathlib.Path(intermediate_dir))
+
+            # loop through already analysed and see if there's a match
+            for annotated_file in analysed_files_list:
+                if str(annotated_file) == str(target_annotated_path):
+                    unanalysed_image_list.remove(image_file)
+                    break
+
+        print(f'{len(analysed_files_list)} images were already analysed.')
+        print(f'{len(unanalysed_image_list)} images need to be analysed.')
+        # update attribute
+        widget.unanalysed_files = unanalysed_image_list
+
+        return widget
 
     @widget.do_rotation.changed.connect
     def get_random_image_do_rotation(event=None):
 
-        # get raw path
-        raw_path = str(widget.raw_dir.value)
-        raw_path_as_list = raw_path.split(os.sep)
-        raw_path = pathlib.Path(raw_path)
-
-        # path names for saving analysed data
-        save_path = str(widget.annotated_dir.value)
-
-        found_analysis_file = False
-
-        while found_analysis_file == False:
-
-            # read in a file that hasn't been analysed yet
-            if len(visited_files) == 0:
-                file = choice(glob(f'{raw_path}/**/*'))
-            else:
-                while file in visited_files:
-                    file = choice(glob(f'{raw_path}/**/*'))
-
-            file_as_list = file.split(os.sep)
-
-            # want to find intermediate folders between raw path and file
-            depth_raw = len(raw_path_as_list)
-            depth_file = len(file_as_list)
-
-            target_save_path = pathlib.Path(save_path)
-            for dir in file_as_list[depth_raw:depth_file]:
-                target_save_path = target_save_path.joinpath(pathlib.Path(dir))
-
-            # check if an analysed file already exists at this location
-            if target_save_path.exists():
-                visited_files.append(file)
-                print(f'{file} already analysed!')
-            else:
-                found_analysis_file = True
+        # select random file from unanalysed list and remove it
+        file = choice(widget.unanalysed_files)
+        widget.unanalysed_files.remove(file)
+        print(f'{len(widget.unanalysed_files)} remain unanalysed.')
 
         print(f"let's analyse the file: {file}")
         # load raw file
@@ -147,6 +178,7 @@ def blind_annotation_widget():
 
 viewer = napari.Viewer()
 viewer.window.add_dock_widget(blind_annotation_widget())
+all_image_files = []
 visited_files = []
 napari.run()
 
