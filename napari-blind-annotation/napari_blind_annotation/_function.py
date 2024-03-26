@@ -13,13 +13,16 @@ from numpy import flipud, fliplr
 global visited_files
 def my_widget():
     @magicgui(
-        auto_call=True,
+        auto_call=False,
+        call_button="Save and move to next image",
         raw_dir={"widget_type": 'FileEdit', 'mode': 'd'},
         annotated_dir={"widget_type": 'FileEdit', 'mode': 'd'},
-        do_rotation={"widget_type": 'PushButton', 'text': 'Load and transform random image'},
-        save_labels={"widget_type": 'PushButton', 'text': 'Save labels'}
+        do_rotation={"widget_type": 'PushButton', 'text': 'Load and transform random image'}
     )
     def widget(raw_dir, annotated_dir, do_rotation, save_labels):
+        # TODO: DON'T FORGET YOU NEED TO REVERSE THE ROTATION AND FLIPPING!!!!!!!!!
+
+        print("we ran")
         return
 
 
@@ -93,13 +96,6 @@ def my_widget():
         viewer.add_labels(data=np.zeros(h_flipped.shape, dtype='uint16'), name='labels', opacity=0.4)
 
     return widget
-
-    @widget.save_labels.changed.connect
-    def save(event=None):
-        print('this button works')
-        # TODO: DON'T FORGET YOU NEED TO REVERSE THE ROTATION AND FLIPPING!!!!!!!!!
-        return widget
-
 
 viewer = napari.Viewer()
 viewer.window.add_dock_widget(my_widget())
