@@ -4,14 +4,14 @@ import numpy as np
 from magicgui import magicgui
 from random import choice
 from glob import glob
-from tifffile import imread
+from tifffile import imread, imwrite
 import os
 import napari
 from numpy import flipud, fliplr, rot90
 
 global visited_files
 
-def my_widget():
+def blind_annotation_widget():
     @magicgui(
         auto_call=False,
         call_button="Save and move to next image",
@@ -41,15 +41,26 @@ def my_widget():
         # undo rotation
         un_rotated = rot90(un_v_flipped, int(-angle/90))
 
-        # add as a layer
-        viewer.add_labels(data=un_rotated.astype('uint16'), name='untransformed labels', opacity=0.4)
+        # debugging - add as a layer
+        # viewer.add_labels(data=un_rotated.astype('uint16'), name='untransformed labels', opacity=0.4)
 
-        print("we ran")
+        # now just need to save it to corresponding location in annotated dir
+        # let's just use tifffile because I actually cannot deal with napari.
+        print(target_save_path)
+        # check if directories exist
+        if os.path.exists(os.path.dirname(target_save_path)) == False:
+            os.makedirs(os.path.dirname(target_save_path))
+            print('created directory!')
+        imwrite(target_save_path, un_rotated)
+
+        print("it actually ran?!")
         return
 
 
     @widget.do_rotation.changed.connect
-    def do_something(event=None):
+    def get_random_image_do_rotation(event=None):
+
+        global target_save_path # stupid stupid hate hate
 
         # get raw path
         raw_path = str(widget.raw_dir.value)
@@ -87,6 +98,7 @@ def my_widget():
             else:
                 found_analysis_file = True
 
+        print(f"let's analyse the file: {file}")
         # load raw file
         raw = imread(file)
 
@@ -117,7 +129,8 @@ def my_widget():
         # now want to add h_flipped as an image layer
         viewer.add_image(data=h_flipped, name='data')
 
-        viewer.add_image(data=raw, name='before transform', visible=False)
+        # debugging for texting unrotation later
+        #viewer.add_image(data=raw, name='before transform', visible=False)
 
         # add labels layer
         viewer.add_labels(data=np.zeros(h_flipped.shape, dtype='uint16'), name='labels', opacity=0.4)
@@ -126,7 +139,7 @@ def my_widget():
 
 
 viewer = napari.Viewer()
-viewer.window.add_dock_widget(my_widget())
+viewer.window.add_dock_widget(blind_annotation_widget())
 visited_files = []
 napari.run()
 
