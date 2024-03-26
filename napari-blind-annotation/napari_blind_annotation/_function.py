@@ -20,8 +20,11 @@ def blind_annotation_widget():
         do_rotation={"widget_type": 'PushButton', 'text': 'Load and transform random image'}
     )
     def widget(raw_dir, annotated_dir, do_rotation):
-        # TODO: DON'T FORGET YOU NEED TO REVERSE THE ROTATION AND FLIPPING!!!!!!!!!
-        # get label image data, fucking stupid there must be a better way
+        image_metadata = viewer.layers['data'].metadata
+        horizontal_flip = image_metadata['horizontal_flip']
+        vertical_flip = image_metadata['vertical_flip']
+        angle = image_metadata['angle']
+        target_save_path = image_metadata['target_save_path']
 
         label_layer = viewer.layers['labels']
         layer_data = label_layer.data
@@ -51,20 +54,16 @@ def blind_annotation_widget():
         if os.path.exists(os.path.dirname(target_save_path)) == False:
             os.makedirs(os.path.dirname(target_save_path))
             print('created directory!')
+
         imwrite(target_save_path, un_rotated)
 
-        # TODO: close layers
         viewer.layers.clear()
 
-
-        print("it actually ran?!")
         return
 
 
     @widget.do_rotation.changed.connect
     def get_random_image_do_rotation(event=None):
-
-        global target_save_path # stupid stupid hate hate
 
         # get raw path
         raw_path = str(widget.raw_dir.value)
@@ -107,14 +106,13 @@ def blind_annotation_widget():
         raw = imread(file)
 
         # apply random rotation
-        global angle # I hate this.
         angle = choice([0, 90, 180, 270])
         print(angle)
         rotated = rot90(raw, int(angle/90))
 
         # apply random vertical flip
-        global vertical_flip
-        vertical_flip = choice([0, 1]) # I also hate this.
+
+        vertical_flip = choice([0, 1])
         if vertical_flip == 1:
             print('v flipped!')
             v_flipped = flipud(rotated)
@@ -122,8 +120,7 @@ def blind_annotation_widget():
             v_flipped = rotated
 
         # apply random horizontal flip
-        global horizontal_flip
-        horizontal_flip = choice([0, 1]) # Newsflash: I also hate this.
+        horizontal_flip = choice([0, 1])
         if horizontal_flip == 1:
             print('h flipped!')
             h_flipped = fliplr(v_flipped)
@@ -131,7 +128,13 @@ def blind_annotation_widget():
             h_flipped = v_flipped
 
         # now want to add h_flipped as an image layer
-        viewer.add_image(data=h_flipped, name='data')
+        viewer.add_image(data=h_flipped, name='data', metadata={
+            'angle':angle,
+            'vertical_flip':vertical_flip,
+            'horizontal_flip':horizontal_flip,
+            'target_save_path':target_save_path
+        })
+
 
         # debugging for texting unrotation later
         #viewer.add_image(data=raw, name='before transform', visible=False)
