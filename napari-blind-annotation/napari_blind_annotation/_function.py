@@ -20,7 +20,7 @@ def blind_annotation_widget():
         annotated_dir={"widget_type": 'FileEdit', 'mode': 'd'},
         do_rotation={"widget_type": 'PushButton', 'text': 'Load and transform random image'}
     )
-    def widget(raw_dir, annotated_dir, do_rotation, param_options):
+    def widget(raw_dir, annotated_dir, do_rotation):
         image_metadata = viewer.layers['data'].metadata
         horizontal_flip = image_metadata['horizontal_flip']
         vertical_flip = image_metadata['vertical_flip']
@@ -102,14 +102,9 @@ def blind_annotation_widget():
         depth_images_path = len(str(widget.raw_dir.value).split(os.sep))
 
         for image_file in widget.all_image_files:
-            # get path depth of this image
-            file_as_list = image_file.split(os.sep)
 
             # create equivalent analysed file path
-            # TODO: make into function, need it in button callback
-            target_annotated_path = pathlib.Path(widget.annotated_dir.value)
-            for intermediate_dir in file_as_list[depth_images_path:len(file_as_list) + 1]: # why the +1
-                target_annotated_path = target_annotated_path.joinpath(pathlib.Path(intermediate_dir))
+            target_annotated_path = make_target_save_path(widget, image_file)
 
             # loop through already analysed and see if there's a match
             for annotated_file in analysed_files_list:
@@ -163,7 +158,7 @@ def blind_annotation_widget():
             'angle':angle,
             'vertical_flip':vertical_flip,
             'horizontal_flip':horizontal_flip,
-            'target_save_path':target_save_path
+            'target_save_path':make_target_save_path(widget, file)
         })
 
 
@@ -174,6 +169,17 @@ def blind_annotation_widget():
         viewer.add_labels(data=np.zeros(h_flipped.shape, dtype='uint16'), name='labels', opacity=0.4)
 
     return widget
+
+def make_target_save_path(widget, file):
+    # get folder depth of raw path
+    depth_images_path = len(str(widget.raw_dir.value).split(os.sep))
+    file_as_list = file.split(os.sep)
+
+    target_save_path = pathlib.Path(widget.annotated_dir.value)
+    for intermediate_dir in file_as_list[depth_images_path:len(file_as_list) + 1]: # why the +1
+        target_save_path = target_save_path.joinpath(pathlib.Path(intermediate_dir))
+
+    return target_save_path
 
 
 viewer = napari.Viewer()
